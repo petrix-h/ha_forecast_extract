@@ -1,0 +1,19 @@
+{%- set raw = states('sensor.ruuvitag_d4e6_voltage') %}
+          {# strip everything but digits and dot #}
+          {%- set clean = raw | regex_replace('[^0-9\\.]', '') %}
+          {# parse to float, assume mV → convert to V #}
+          {%- set v = (clean | float(0)) / 1000 %}
+          {# define your empty & full cutoff volts #}
+          {%- set min_v = 1.8 %}
+          {%- set max_v = 3.0 %}
+          {# compute percentage #}
+          {%- set pct = ((v - min_v) / (max_v - min_v)) * 100 %}
+          {# clamp & round #}
+          {# 6. Clamp via if/elif/else and round #}
+          {% if pct <= 0 %}
+            0
+          {% elif pct >= 100 %}
+            100
+          {% else %}
+            {{ pct | round(0) }}
+          {% endif %}
