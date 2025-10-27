@@ -1,0 +1,141 @@
+# Originally based on: https://gist.github.com/JohanAlvedal/48fb8b3e1ef5fc3a70b5c473be54e2fe
+blueprint:
+  name: Extract 24 Hourly Temperatures (Sorted)2
+  description: >
+    Fetches the next 24 hours of temperature forecasts from any weather entity
+    and saves them to an input_text in comma-separated format "26.8,26.6,26.8,...".
+    Sorts the forecast by datetime to ensure chronological order from current time forward.
+    Perfect for feeding temperature data to other automations, scripts, or dashboards.
+  domain: automation
+  input:
+    weather_entity:
+      name: Weather Entity
+      description: Select the weather entity to extract hourly temperature forecasts from. Tested and verified with SMHI and Met.no weather integrations.
+      selector:
+        entity:
+          domain: weather
+    target_input_text:
+      name: Target Input Text Entity
+      description: The input_text entity where the comma-separated temperature string will be stored
+      selector:
+        entity:
+          domain: input_text
+      default: input_text.hourly_forecast_temperatures
+    target_min_temp:
+      name: Target Min Temp
+      description: The input_text entity where the comma-separated temperature string will be stored
+      selector:
+        entity:
+          domain: input_text
+      default: input_text.hourly_forecast_min_temperature
+    target_min_temp_date:
+      name: Target Min Temp Date
+      description: The input_text entity where the comma-separated temperature string will be stored
+      selector:
+        entity:
+          domain: input_text
+      default: input_text.hourly_forecast_min_temperature_date
+    interval_pattern:
+      name: Update Interval Pattern (minutes)
+      description: >
+        Specify a time pattern value for minutes. Examples:
+        "/30" (every 30 minutes), "0,30" (at :00 and :30), "15" (at :15 every hour).
+        More frequent updates ensure fresher data but may increase system load.
+      default: "/30"
+      selector:
+        text:
+          multiline: false
+
+mode: single
+max_exceeded: silent
+
+variables:
+  weather_eid: !input weather_entity
+  target_entity: !input target_input_text
+  target_min_temp: !input target_min_temp
+  target_min_temp_date: !input target_min_temp_date
+
+triggers:
+  - trigger: time_pattern
+    minutes: !input interval_pattern
+  - trigger: homeassistant
+    event: start
+  - trigger: event
+    event_type: event_template_reloaded
+
+actions:
+  # Fetch hourly forecast using weather.get_forecasts
+  - action: weather.get_forecasts
+    data:
+      type: hourly
+    target:
+      entity_id: "{{ weather_eid }}"
+    response_variable: weather_response
+
+  # Debug logging for raw weather response
+  - action: system_log.write
+    data:
+      message: "Weather forecast response: {{ weather_response }}"
+      level: info
+
+  - variables:
+      forecast_data: "{{ weather_response[weather_eid].forecast or [] }}"
+      sorted_forecast: "{{ forecast_data | sort(attribute='datetime') }}"
+      # list of first 24 forecast entries that have a temperature
+      first24: >
+        {{
+          (sorted_forecast
+          | selectattr('temperature', 'ne', none)
+          | list)[:24]
+        }}
+      # rounded temperatures for those entries
+      temps: >
+        {{
+          (first24
+          | map(attribute='temperature')
+          | map('round', 1)
+          | list)
+        }}
+      min_temperature: "{{ (temps | min) if (temps | length) > 0 else none }}"
+      # find the first entry in first24 whose rounded temperature equals min_temperature, then take its datetime
+      min_temperature_date: >
+        {{
+          (
+            (first24
+            | selectattr('temperature', 'defined')
+            | selectattr('temperature', 'ne', none)
+            | selectattr('temperature', 'equalto', min_temperature)
+            | map(attribute='datetime')
+            | list)[0]
+          ) if (min_temperature is not none and (first24 | length) > 0) else none
+        }}
+
+  # Debug logging to show old vs new values
+  - action: system_log.write
+    data:
+      message: >
+        Temperature update: 
+        OLD: {{ states(target_entity) }}
+        NEW: {{ temperature_string }}
+        Forecast entries: {{ forecast_data | length }}, 
+        Valid temperatures: {{ temps | length }}
+      level: info
+
+  # Save the temperature string to input_text entity
+  - action: input_text.set_value
+    target:
+      entity_id: "{{ target_entity }}"
+    data:
+      value: "{{ temperature_string }}"
+  # Save the temperature string to input_text entity
+  - action: input_text.set_value
+    target:
+      entity_id: "{{ target_min_temp }}"
+    data:
+      value: "{{ min_temperature }}"
+  # Save the temperature string to input_text entity
+  - action: input_text.set_value
+    target:
+      entity_id: "{{ target_min_temp_date }}"
+    data:
+      value: "{{ min_temperature_date }}"
