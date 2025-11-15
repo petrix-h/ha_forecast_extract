@@ -104,6 +104,7 @@ variables:
   interval_pattern: !input interval_pattern
   auto_fan_state: !input auto_fan_state
   notify_target: !input notify_target
+  auto_fan_state_before_run_value: "{{ states(auto_fan_state) }}"
   
 triggers:
   - trigger: time_pattern
@@ -206,29 +207,33 @@ actions:
                   entity_id: !input auto_fan_state
                 alias: Auto Fan State -> IDLE
                 enabled: true
-  - action: !input notify_target
-    metadata: {}
-    data:
-      message: >-
-        {% set dt =
-        as_datetime(state_attr(target_min_temp_date,
-        "timestamp")) %}
+  - if:
+      - condition: template
+        value_template: "{{ states(auto_fan_state) != auto_fan_state_before_run_value }}"
+    then:
+      - action: notify.mobile_app_petris_ipad
+        metadata: {}
+        data:
+          message: >-
+            {% set dt = as_datetime(state_attr(target_min_temp_date,
+            "timestamp")) %}
 
-        {% set now = utcnow() %}
+            {% set now = utcnow() %}
 
-        Set Auto Fan State to {{ states(auto_fan_state) }}
+            Set Auto Fan State to {{ states(auto_fan_state) }} changed {{
+            states(auto_fan_state) != auto_fan_state_before_run_value}}
 
-        Forecast 24h lowest temperature is {{
-        states(target_min_temp, rounded=false, with_unit=true)
-        }} {%- if states(target_min_temp) | float < target_min_temp_threshold | float %} which is less than
-        the {{ target_min_temp_threshold }} threshold {%- endif -%} .
+            Forecast 24h lowest temperature is {{ states(target_min_temp,
+            rounded=false, with_unit=true) }} {%- if states(target_min_temp) |
+            float < target_min_temp_threshold | float %} which is less than the
+            {{ target_min_temp_threshold }} threshold {%- endif -%} .
 
-        The 24h low will be at {{
-        states(target_min_temp_date) }} {%- if  (dt > now)
-        and ((dt - now).total_seconds() <= (target_min_temp_threshold_time | float)*3600) -%}, which is less
-        than {{ target_min_temp_threshold_time }} hours out{%-
-        endif -%}.
+            The 24h low will be at {{ states(target_min_temp_date) }} {%- if 
+            (dt > now) and ((dt - now).total_seconds() <=
+            (target_min_temp_threshold_time | float)*3600) -%}, which is less
+            than {{ target_min_temp_threshold_time }} hours out{%- endif -%}.
 
-        The outside temperature is {{ states(ext_temp_sensor, rounded=false, with_unit=true)}}.
+            The outside temperature is {{ states(ext_temp_sensor, rounded=false,
+            with_unit=true)}}.
 
 
