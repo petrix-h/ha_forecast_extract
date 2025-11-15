@@ -1,0 +1,246 @@
+blueprint:
+  name: Fan automation state machine
+  description: >
+    Checks input values against thresholds and sensors and updates a state machine like state representing fans. 
+  domain: automation
+  input:
+    # The temperature sensor to trigger or monitor on
+    ext_temp_sensor:
+      name: Ext temperature sensor
+      description: The temperature sensor to trigger or monitor on
+      selector:
+        entity:
+          domain: sensor
+      default: sensor.temperature_humidity_sensor_e303_temperature
+    
+    #The helper entities with 24h forecast data
+    target_min_temp:
+      name: Target Min Temp
+      description: The input_number entity that holds the 24h lowest temperature
+      selector:
+        entity:
+          domain: input_number
+      default: input_number.min_temp_next_24h
+    target_min_temp_date:
+      name: Target Min Temp Date
+      description: The input_datetime entity that holds the timestamp for the lowest temperature in the next 24h 
+      selector:
+        entity:
+          domain: input_datetime
+      default: input_datetime.min_temp_24h_date_time
+
+    #The statemachine
+    auto_fan_state:
+      name: Target input_select for the state machine with IDLE, PREHEAT, HEAT, WAIT, MANUAL options
+      description: The input_select entity that holds the state of the autofan
+      selector:
+        entity:
+          domain: input_select
+      default: input_select.auto_fan_state
+
+    #The forecast threshold/limit helpers
+    target_min_temp_threshold:
+      name: Target Min Temp threshold
+      description: The threshold at which the 24h lowest temperature is considered to be low enough for the automation to start preheating
+      default: -3
+    target_min_temp_threshold_time:
+      name: Target Min Temp threshold time
+      description: The amount of hours ahead of the forecasted lowest temperature the script should start preheating
+      default: 4
+
+    
+    #The outside temperature threshold values
+    outside_min_temp_lower_threshold:
+      name: Outside Min Temp for HEAT
+      description: The temperature at which if the ouside temperature sensor reaches, the fans will be turned on
+      default: "-3"
+    outside_min_temp_lower_threshold_time:
+      name: Ouside Min Temp threshold time
+      description: The amount of time the outside temp sensor should be below min temp in order for the state machine to go to HEAT
+      default: "5"
+    outside_min_temp_upper_threshold:
+      name: Outside Temp for turning off HEAT
+      description: The temperature at which if the ouside temperature sensor reaches, the state will be set to IDLE or PREHEAT (essentially fans off) 
+      default: "-2"
+    outside_min_temp_upper_threshold_time:
+      name: Ouside Min Temp upper threshold time
+      description: The amount of time the outside temp sensor should be above min temp upper threshold in order for the state machine to go to IDLE/PREHEAT
+      default: "10"
+    outside_min_temp_wait_threshold:
+      name: Outside Temp for turning to WAIT
+      description: The temperature at which if the ouside temperature sensor reaches, the state will be set to WAIT (essentially fans off) due to outside being too cold for the heater anyway
+      default: "-18"
+
+    # The update interval 
+    interval_pattern:
+      name: Update Interval Pattern (minutes)
+      description: >
+        Specify a time pattern value for minutes. Examples:
+        "/30" (every 30 minutes), "0,30" (at :00 and :30), "15" (at :15 every hour).
+        More frequent updates ensure fresher data but may increase system load.
+      default: "03"
+      selector:
+        text:
+          multiline: false
+
+    # Notify target
+    notify_target:
+      name: Target notifications
+      description: The entity to send notificaitons to 
+      default: notify.mobile_app_petris_ipad
+
+mode: single
+max_exceeded: silent
+
+variables:
+  ext_temp_sensor: !input ext_temp_sensor
+  target_min_temp: !input target_min_temp
+  target_min_temp_date: !input target_min_temp_date
+  target_min_temp_threshold: !input target_min_temp_threshold 
+  target_min_temp_threshold_time: !input target_min_temp_threshold_time
+  outside_min_temp_upper_threshold: !input outside_min_temp_upper_threshold
+  outside_min_temp_upper_threshold_time: !input outside_min_temp_upper_threshold_time
+  outside_min_temp_wait_threshold: !input outside_min_temp_wait_threshold
+  interval_pattern: !input interval_pattern
+  auto_fan_state: !input auto_fan_state
+  notify_target: !input notify_target
+  auto_fan_state_before_run_value: "{{ states(auto_fan_state) }}"
+  
+triggers:
+  - trigger: time_pattern
+    minutes: !input interval_pattern
+  - trigger: homeassistant
+    event: start
+  - trigger: event
+    event_type: event_template_reloaded
+  - trigger: numeric_state
+    entity_id:
+      - !input ext_temp_sensor
+    for:
+      hours: 0
+      minutes: !input outside_min_temp_lower_threshold_time
+      seconds: 0
+    below: !input outside_min_temp_lower_threshold
+  - trigger: numeric_state
+    entity_id:
+      - !input ext_temp_sensor
+    for:
+      hours: 0
+      minutes: !input outside_min_temp_upper_threshold_time
+      seconds: 0
+    above: !input outside_min_temp_upper_threshold
+  - trigger: numeric_state
+    entity_id:
+      - !input ext_temp_sensor
+    for:
+      hours: 0
+      minutes: !input outside_min_temp_upper_threshold_time
+      seconds: 0
+    below: !input outside_min_temp_wait_threshold
+  - trigger: numeric_state
+    entity_id:
+      - !input ext_temp_sensor
+    for:
+      hours: 0
+      minutes: !input outside_min_temp_upper_threshold_time
+      seconds: 0
+    above: !input outside_min_temp_wait_threshold
+
+conditions:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: !input auto_fan_state
+        state:
+          - MANUAL
+
+actions:
+  - choose:
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input ext_temp_sensor
+            below: !input outside_min_temp_wait_threshold
+        sequence:
+          - action: input_select.select_option
+            metadata: {}
+            data:
+              option: WAIT
+            target:
+              entity_id: !input auto_fan_state
+            alias: Auto Fan State -> WAIT
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input ext_temp_sensor
+            below: !input outside_min_temp_lower_threshold
+        sequence:
+          - action: input_select.select_option
+            metadata: {}
+            data:
+              option: HEAT
+            target:
+              entity_id: !input auto_fan_state
+            alias: Auto Fan State -> HEAT
+      - conditions: []
+        sequence:
+          - if:
+              - condition: and
+                conditions:
+                  - condition: numeric_state
+                    entity_id: !input target_min_temp
+                    below: !input target_min_temp_threshold
+                  - condition: template
+                    value_template: >-
+                      {% set dt =
+                      as_datetime(state_attr(target_min_temp_date,
+                      "timestamp")) %}
+
+                      {% set now = utcnow() %}
+
+                      {{ (dt > now) and ((dt - now).total_seconds() <=
+                      (target_min_temp_threshold_time | float)*3600) }}
+            then:
+              - action: input_select.select_option
+                metadata: {}
+                data:
+                  option: PREHEAT
+                target:
+                  entity_id: !input auto_fan_state
+                alias: Auto Fan State -> PREHEAT
+            else:
+              - action: input_select.select_option
+                metadata: {}
+                data:
+                  option: IDLE
+                target:
+                  entity_id: !input auto_fan_state
+                alias: Auto Fan State -> IDLE
+                enabled: true
+  - if:
+      - condition: template
+        value_template: "{{ states(auto_fan_state) != auto_fan_state_before_run_value }}"
+    then:
+      - action: !input notify_target
+        metadata: {}
+        data:
+          message: >-
+            {% set dt = as_datetime(state_attr(target_min_temp_date,
+            "timestamp")) %}
+
+            {% set now = utcnow() %}
+
+            Set Auto Fan State to {{ states(auto_fan_state) }} was {{auto_fan_state_before_run_value}}.
+
+            Forecast 24h lowest temperature is {{ states(target_min_temp,
+            rounded=false, with_unit=true) }} {%- if states(target_min_temp) |
+            float < target_min_temp_threshold | float %} which is less than the
+            {{ target_min_temp_threshold }} threshold {%- endif -%} .
+
+            The 24h low will be at {{ states(target_min_temp_date) }} {%- if 
+            (dt > now) and ((dt - now).total_seconds() <=
+            (target_min_temp_threshold_time | float)*3600) -%}, which is less
+            than {{ target_min_temp_threshold_time }} hours out{%- endif -%}.
+
+            The outside temperature is {{ states(ext_temp_sensor, rounded=false,
+            with_unit=true)}}.
+
+
