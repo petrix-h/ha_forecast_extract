@@ -149,7 +149,7 @@ actions:
       - conditions:
           - condition: numeric_state
             entity_id: !input ext_temp_sensor
-            below: -20
+            below: !input outside_min_temp_wait_threshold
         sequence:
           - action: input_select.select_option
             metadata: {}
@@ -161,7 +161,7 @@ actions:
       - conditions:
           - condition: numeric_state
             entity_id: !input ext_temp_sensor
-            below: -3
+            below: !input outside_min_temp_lower_threshold
         sequence:
           - action: input_select.select_option
             metadata: {}
