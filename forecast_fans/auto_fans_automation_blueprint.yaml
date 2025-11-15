@@ -181,7 +181,7 @@ actions:
                       {% set now = utcnow() %}
 
                       {{ (dt > now) and ((dt - now).total_seconds() <=
-                      target_min_temp_threshold_time*3600) }}
+                      (target_min_temp_threshold_time | float)*3600) }}
             then:
               - action: input_select.select_option
                 metadata: {}
@@ -218,7 +218,7 @@ actions:
 
         The 24h low will be at {{
         states(target_min_temp_date) }} {%- if  (dt > now)
-        and ((dt - now).total_seconds() <= target_min_temp_threshold_time*3600) -%}, which is less
+        and ((dt - now).total_seconds() <= (target_min_temp_threshold_time | float)*3600) -%}, which is less
         than {{ target_min_temp_threshold_time }} hours out{%-
         endif -%}.
 
