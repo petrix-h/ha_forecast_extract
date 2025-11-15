@@ -83,6 +83,12 @@ blueprint:
         text:
           multiline: false
 
+    # Notify target
+    notify_target:
+      name: Target notifications
+      description: The entity to send notificaitons to 
+      default: notify.mobile_app_petris_ipad
+
 mode: single
 max_exceeded: silent
 
@@ -97,6 +103,7 @@ variables:
   outside_min_temp_wait_threshold: !input outside_min_temp_wait_threshold
   interval_pattern: !input interval_pattern
   auto_fan_state: !input auto_fan_state
+  notify_target: !input notify_target
   
 triggers:
   - trigger: time_pattern
@@ -199,7 +206,7 @@ actions:
                   entity_id: !input auto_fan_state
                 alias: Auto Fan State -> IDLE
                 enabled: true
-  - action: notify.mobile_app_petris_ipad
+  - action: !input notify_target
     metadata: {}
     data:
       message: >-
