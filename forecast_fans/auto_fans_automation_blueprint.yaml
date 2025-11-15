@@ -146,6 +146,14 @@ triggers:
       seconds: 0
     above: !input outside_min_temp_wait_threshold
 
+conditions:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: !input auto_fan_state
+        state:
+          - MANUAL
+
 actions:
   - choose:
       - conditions:
