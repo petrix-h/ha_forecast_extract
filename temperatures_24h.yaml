@@ -40,7 +40,7 @@ blueprint:
         Specify a time pattern value for minutes. Examples:
         "/30" (every 30 minutes), "0,30" (at :00 and :30), "15" (at :15 every hour).
         More frequent updates ensure fresher data but may increase system load.
-      default: ":30"
+      default: "01"
       selector:
         text:
           multiline: false
