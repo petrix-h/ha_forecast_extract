@@ -156,7 +156,7 @@ actions:
             data:
               option: WAIT
             target:
-              entity_id: input_select.auto_fan_state
+              entity_id: !input auto_fan_state
             alias: Auto Fan State -> WAIT
       - conditions:
           - condition: numeric_state
@@ -168,7 +168,7 @@ actions:
             data:
               option: HEAT
             target:
-              entity_id: input_select.auto_fan_state
+              entity_id: !input auto_fan_state
             alias: Auto Fan State -> HEAT
       - conditions: []
         sequence:
@@ -177,7 +177,7 @@ actions:
                 conditions:
                   - condition: numeric_state
                     entity_id: input_number.min_temp_next_24h
-                    below: input_number.min_temp_below_threshold
+                    below: !input target_min_temp_threshold
                   - condition: template
                     value_template: >-
                       {% set hours_pre =
@@ -198,7 +198,7 @@ actions:
                 data:
                   option: PREHEAT
                 target:
-                  entity_id: input_select.auto_fan_state
+                  entity_id: !input auto_fan_state
                 alias: Auto Fan State -> PREHEAT
             else:
               - action: input_select.select_option
@@ -206,7 +206,7 @@ actions:
                 data:
                   option: IDLE
                 target:
-                  entity_id: input_select.auto_fan_state
+                  entity_id: !input auto_fan_state
                 alias: Auto Fan State -> IDLE
                 enabled: true
   - action: notify.mobile_app_petris_ipad
@@ -222,13 +222,13 @@ actions:
 
         {% set now = utcnow() %}
 
-        Set Auto Fan State to {{ states('input_select.auto_fan_state') }}
+        Set Auto Fan State to {{ states('!input auto_fan_state') }}
 
         Forecast 24h lowest temperature is {{
-        states("input_number.min_temp_next_24h", rounded=false, with_unit=true)
-        }} {%- if states("input_number.min_temp_next_24h") <
-        states("input_number.min_temp_below_threshold") %} which is less than
-        the {{ states("input_number.min_temp_below_threshold", rounded=false,
+        states("!input target_min_temp", rounded=false, with_unit=true)
+        }} {%- if states("!input target_min_temp") <
+        states("!input target_min_temp_threshold") %} which is less than
+        the {{ states("!input target_min_temp_threshold", rounded=false,
         with_unit=true) }} threshold {%- endif -%} .
 
         The 24h low will be at {{
