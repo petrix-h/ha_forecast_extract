@@ -213,7 +213,7 @@ actions:
 
         Forecast 24h lowest temperature is {{
         states(target_min_temp, rounded=false, with_unit=true)
-        }} {%- if states(target_min_temp) < target_min_temp_threshold %} which is less than
+        }} {%- if states(target_min_temp) | float < target_min_temp_threshold %} which is less than
         the {{ target_min_temp_threshold }} threshold {%- endif -%} .
 
         The 24h low will be at {{
