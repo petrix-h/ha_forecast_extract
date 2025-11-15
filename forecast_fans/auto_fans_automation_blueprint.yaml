@@ -174,10 +174,6 @@ actions:
                     below: !input target_min_temp_threshold
                   - condition: template
                     value_template: >-
-                      {% set hours_pre =
-                      states(target_min_temp_threshold_time, rounded=false,
-                      with_unit=false) | float %}
-
                       {% set dt =
                       as_datetime(state_attr(target_min_temp_date,
                       "timestamp")) %}
@@ -185,7 +181,7 @@ actions:
                       {% set now = utcnow() %}
 
                       {{ (dt > now) and ((dt - now).total_seconds() <=
-                      hours_pre*3600) }}
+                      target_min_temp_threshold_time*3600) }}
             then:
               - action: input_select.select_option
                 metadata: {}
@@ -207,9 +203,6 @@ actions:
     metadata: {}
     data:
       message: >-
-        {% set hours_pre = states(target_min_temp_threshold_time,
-        rounded=false, with_unit=false) | float %}
-
         {% set dt =
         as_datetime(state_attr(target_min_temp_date,
         "timestamp")) %}
@@ -222,13 +215,12 @@ actions:
         states(target_min_temp, rounded=false, with_unit=true)
         }} {%- if states(target_min_temp) <
         states(target_min_temp_threshold) %} which is less than
-        the {{ states(target_min_temp_threshold, rounded=false,
-        with_unit=true) }} threshold {%- endif -%} .
+        the {{ target_min_temp_threshold }} threshold {%- endif -%} .
 
         The 24h low will be at {{
         states(target_min_temp_date) }} {%- if  (dt > now)
-        and ((dt - now).total_seconds() <= hours_pre*3600) -%}, which is less
-        than {{ states(target_min_temp_threshold_time) }} hours out{%-
+        and ((dt - now).total_seconds() <= target_min_temp_threshold_time*3600) -%}, which is less
+        than {{ target_min_temp_threshold_time }} hours out{%-
         endif -%}.
 
         The outside temperature is {{ states(ext_temp_sensor, rounded=false, with_unit=true)}}.
