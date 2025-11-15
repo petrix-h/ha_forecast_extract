@@ -238,7 +238,7 @@ actions:
         endif -%}.
 
         The outside temperature is {{
-        states('ext_temp_sensor',
+        states('!input ext_temp_sensor',
         rounded=false, with_unit=true)}}.
 
 
