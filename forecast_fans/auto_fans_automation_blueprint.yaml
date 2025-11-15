@@ -113,36 +113,36 @@ triggers:
     event_type: event_template_reloaded
   - trigger: numeric_state
     entity_id:
-      - ext_temp_sensor
+      - !input ext_temp_sensor
     for:
       hours: 0
-      minutes: outside_min_temp_lower_threshold_time
+      minutes: !input outside_min_temp_lower_threshold_time
       seconds: 0
-    below: outside_min_temp_lower_threshold
+    below: !input outside_min_temp_lower_threshold
   - trigger: numeric_state
     entity_id:
-      - ext_temp_sensor
+      - !input ext_temp_sensor
     for:
       hours: 0
-      minutes: outside_min_temp_upper_threshold_time
+      minutes: !input outside_min_temp_upper_threshold_time
       seconds: 0
-    above: outside_min_temp_upper_threshold
+    above: !input outside_min_temp_upper_threshold
   - trigger: numeric_state
     entity_id:
-      - ext_temp_sensor
+      - !input ext_temp_sensor
     for:
       hours: 0
-      minutes: outside_min_temp_upper_threshold_time
+      minutes: !input outside_min_temp_upper_threshold_time
       seconds: 0
-    below: outside_min_temp_wait_threshold
+    below: !input outside_min_temp_wait_threshold
   - trigger: numeric_state
     entity_id:
-      - ext_temp_sensor
+      - !input ext_temp_sensor
     for:
       hours: 0
-      minutes: outside_min_temp_upper_threshold_time
+      minutes: !input outside_min_temp_upper_threshold_time
       seconds: 0
-    above: outside_min_temp_wait_threshold
+    above: !input outside_min_temp_wait_threshold
 
 actions:
   - choose:
@@ -240,3 +240,5 @@ actions:
         The outside temperature is {{
         states('ext_temp_sensor',
         rounded=false, with_unit=true)}}.
+
+
