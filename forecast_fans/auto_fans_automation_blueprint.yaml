@@ -88,6 +88,10 @@ blueprint:
       name: Target notifications
       description: The entity to send notificaitons to 
       default: notify.mobile_app_petris_ipad
+    notify_title:
+      name: Title to use for notifications
+      description: The title to use for notifications to differentiate locations
+      default: "- Home -"
 
 mode: single
 max_exceeded: silent
@@ -104,6 +108,7 @@ variables:
   interval_pattern: !input interval_pattern
   auto_fan_state: !input auto_fan_state
   notify_target: !input notify_target
+  notify_title: !input notify_title
   auto_fan_state_before_run_value: "{{ states(auto_fan_state) }}"
   
 triggers:
@@ -222,6 +227,7 @@ actions:
       - action: !input notify_target
         metadata: {}
         data:
+          title: !input notify_title
           message: >-
             {% set dt = as_datetime(state_attr(target_min_temp_date,
             "timestamp")) %}
