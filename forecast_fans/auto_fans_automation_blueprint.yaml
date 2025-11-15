@@ -41,18 +41,12 @@ blueprint:
     #The forecast threshold/limit helpers
     target_min_temp_threshold:
       name: Target Min Temp threshold
-      description: The input_number entity that holds the threshold at which the 24h lowest temperature is considered to be low enough for the automation to start preheating
-      selector:
-        entity:
-          domain: input_number
-      default: input_number.min_temp_below_threshold
+      description: The threshold at which the 24h lowest temperature is considered to be low enough for the automation to start preheating
+      default: -3
     target_min_temp_threshold_time:
       name: Target Min Temp threshold time
-      description: The input_number entity that holds the amount of hours ahead of the forecasted lowest temperature the script should start preheating
-      selector:
-        entity:
-          domain: input_number
-      default: input_number.hours_until_min_temp
+      description: The amount of hours ahead of the forecasted lowest temperature the script should start preheating
+      default: 4
 
     
     #The outside temperature threshold values
