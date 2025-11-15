@@ -1,13 +1,14 @@
 # Originally based on: https://gist.github.com/JohanAlvedal/48fb8b3e1ef5fc3a70b5c473be54e2fe
 blueprint:
-  name: Extract 24 Hourly Temperatures (Sorted)2
+  name: Extract 24 Hourly Temperature and Datetime
   description: >
-    Fetches the next 24 hours of temperature forecasts from any weather entity
-    and saves them to an input_text in comma-separated format "26.8,26.6,26.8,...".
-    Sorts the forecast by datetime to ensure chronological order from current time forward.
-    Perfect for feeding temperature data to other automations, scripts, or dashboards.
+    Fetches the next 24 hours of temperature forecasts from the forecast wether entity. 
+    parses the lowest temperature for the next 24h and saves it in the designated temperature helper.
+    Additinally the datetime timestamp for the lowest temperature is stored in another helper for datetime.
+    Finally the interval is configurable by the minute pattern. 
   domain: automation
   input:
+    # The input weather data
     weather_entity:
       name: Weather Entity
       description: Select the weather entity to extract hourly temperature forecasts from. Tested and verified with SMHI and Met.no weather integrations.
@@ -15,13 +16,8 @@ blueprint:
         entity:
           domain: weather
       default: weather.forecast_home
-    target_input_text:
-      name: Target Input Text Entity
-      description: The input_text entity where the comma-separated temperature string will be stored
-      selector:
-        entity:
-          domain: input_text
-      default: input_text.hourly_forecast_temperatures
+    
+    #The target helper entities
     target_min_temp:
       name: Target Min Temp
       description: The input_number entity where the lowest temperature for the next 24h will be stored
@@ -36,13 +32,15 @@ blueprint:
         entity:
           domain: input_datetime
       default: input_datetime.min_temp_24h_date_time
+
+    # The update interval 
     interval_pattern:
       name: Update Interval Pattern (minutes)
       description: >
         Specify a time pattern value for minutes. Examples:
         "/30" (every 30 minutes), "0,30" (at :00 and :30), "15" (at :15 every hour).
         More frequent updates ensure fresher data but may increase system load.
-      default: "/30"
+      default: ":30"
       selector:
         text:
           multiline: false
@@ -52,7 +50,6 @@ max_exceeded: silent
 
 variables:
   weather_eid: !input weather_entity
-  target_entity: !input target_input_text
   target_min_temp: !input target_min_temp
   target_min_temp_date: !input target_min_temp_date
 
@@ -116,18 +113,12 @@ actions:
     data:
       message: >
         Temperature update: 
-        OLD: {{ states(target_entity) }}
-        NEW: {{ temperature_string }}
-        Forecast entries: {{ forecast_data | length }}, 
-        Valid temperatures: {{ temps | length }}
+        OLD TEMP: {{ states(target_min_temp) }}
+        NEW TEMP: {{ min_temperature }}
+        OLD DATE: {{ states(target_min_temp_date) }}
+        NEW DATE: {{ min_temperature_date }}
       level: info
 
-  # Save the temperature string to input_text entity
-  - action: input_text.set_value
-    target:
-      entity_id: "{{ target_entity }}"
-    data:
-      value: "{{ temperature_string }}"
   # Save the temperature string to input_text entity
   - action: input_number.set_value
     target:
