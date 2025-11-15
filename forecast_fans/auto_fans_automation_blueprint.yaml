@@ -90,11 +90,11 @@ variables:
   ext_temp_sensor: !input ext_temp_sensor
   target_min_temp: !input target_min_temp
   target_min_temp_date: !input target_min_temp_date
-  target_min_temp_threshold: !input target_min_temp_threshold
-  target_min_temp_threshold_time: !input target_min_temp_threshold_time
-  outside_min_temp_upper_threshold: !input outside_min_temp_upper_threshold
-  outside_min_temp_upper_threshold_time: !input outside_min_temp_upper_threshold_time
-  outside_min_temp_wait_threshold: !input outside_min_temp_wait_threshold
+  target_min_temp_threshold: !input target_min_temp_threshold | int
+  target_min_temp_threshold_time: !input target_min_temp_threshold_time | int
+  outside_min_temp_upper_threshold: !input outside_min_temp_upper_threshold | int
+  outside_min_temp_upper_threshold_time: !input outside_min_temp_upper_threshold_time | int
+  outside_min_temp_wait_threshold: !input outside_min_temp_wait_threshold | int
   interval_pattern: !input interval_pattern
   auto_fan_state: !input auto_fan_state
   
