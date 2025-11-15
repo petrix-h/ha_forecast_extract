@@ -148,7 +148,7 @@ actions:
   - choose:
       - conditions:
           - condition: numeric_state
-            entity_id: ext_temp_sensor
+            entity_id: !input ext_temp_sensor
             below: -20
         sequence:
           - action: input_select.select_option
@@ -160,7 +160,7 @@ actions:
             alias: Auto Fan State -> WAIT
       - conditions:
           - condition: numeric_state
-            entity_id: ext_temp_sensor
+            entity_id: !input ext_temp_sensor
             below: -3
         sequence:
           - action: input_select.select_option
