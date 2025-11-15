@@ -14,6 +14,7 @@ blueprint:
       selector:
         entity:
           domain: weather
+      default: weather.forecast_home
     target_input_text:
       name: Target Input Text Entity
       description: The input_text entity where the comma-separated temperature string will be stored
@@ -23,18 +24,18 @@ blueprint:
       default: input_text.hourly_forecast_temperatures
     target_min_temp:
       name: Target Min Temp
-      description: The input_text entity where the comma-separated temperature string will be stored
+      description: The input_number entity where the lowest temperature for the next 24h will be stored
       selector:
         entity:
-          domain: input_text
-      default: input_text.hourly_forecast_min_temperature
+          domain: input_number
+      default: input_number.min_temp_next_24h
     target_min_temp_date:
       name: Target Min Temp Date
-      description: The input_text entity where the comma-separated temperature string will be stored
+      description: The input_datetime entity where the timestamp for the lowest temperature in the next 24h will be stored
       selector:
         entity:
-          domain: input_text
-      default: input_text.hourly_forecast_min_temperature_date
+          domain: input_datetime
+      default: input_datetime.min_temp_24h_date_time
     interval_pattern:
       name: Update Interval Pattern (minutes)
       description: >
@@ -128,14 +129,14 @@ actions:
     data:
       value: "{{ temperature_string }}"
   # Save the temperature string to input_text entity
-  - action: input_text.set_value
+  - action: input_number.set_value
     target:
       entity_id: "{{ target_min_temp }}"
     data:
       value: "{{ min_temperature }}"
   # Save the temperature string to input_text entity
-  - action: input_text.set_value
+  - action: input_datetime.set_datetime
     target:
       entity_id: "{{ target_min_temp_date }}"
     data:
-      value: "{{ min_temperature_date }}"
+      timestamp: "{{ as_datetime(min_temperature_date).timestamp() | int  }}"
