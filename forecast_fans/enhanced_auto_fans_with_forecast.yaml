@@ -257,18 +257,23 @@ actions:
       - conditions: []
         sequence:
           - if:
-              - condition: template
-                value_template: >-
-                  {% set now = utcnow() %}
-                  {% set preheat_hours = target_min_temp_threshold_time | float %}
-                  
-                  {# Check if we should preheat based on threshold crossing #}
-                  {% set should_preheat = false %}
-                  {% if threshold_crossing_time is not none %}
-                    {% set should_preheat = (as_datetime(threshold_crossing_time) > now) and ((as_datetime(threshold_crossing_time) - now).total_seconds() <= (preheat_hours | float) *3600) %}
-                  {% endif %}
-                  
-                  {{ should_preheat }}
+              - condition: and
+                conditions:
+                  - condition: numeric_state
+                    entity_id: !input target_min_temp
+                    below: !input target_min_temp_threshold
+                  - condition: template
+                    value_template: >-
+                      {% set now = utcnow() %}
+                      {% set preheat_hours = target_min_temp_threshold_time | float %}
+                      
+                      {# Check if we should preheat based on threshold crossing #}
+                      {% set should_preheat = false %}
+                      {% if threshold_crossing_time is not none %}
+                        {% set should_preheat = (as_datetime(threshold_crossing_time) > now) and ((as_datetime(threshold_crossing_time) - now).total_seconds() <= (preheat_hours | float) *3600) %}
+                      {% endif %}
+                      
+                      {{ should_preheat }}
             then:
               - action: input_select.select_option
                 metadata: {}
@@ -300,14 +305,14 @@ actions:
             {% set now = utcnow() %}
             {% set preheat_hours = target_min_temp_threshold_time | float %}
             
-            Set Auto Fan State to {{ states(auto_fan_state) }} was {{auto_fan_state_before_run_value}}.
+            Set Auto Fan State to {{ states(auto_fan_state) }} was {{auto_fan_state_before_run_value}}. 
 
             {%- if threshold_crossing_time is not none -%}
               Temperature will cross below {{ outside_min_temp_lower_threshold }}°C at {{ as_datetime(threshold_crossing_time).strftime('%H:%M') }} 
               {%- if threshold_crossing_entry is not none -%} ({{ threshold_crossing_entry.temperature }}°C){%- endif -%}
               {%- if (as_datetime(threshold_crossing_time) - now).total_seconds() <= preheat_hours*3600 -%}, which is within {{ preheat_hours }} hours, so preheating started{%- else -%}, which is more than {{ preheat_hours }} hours away{%- endif -%}.
             {%- else -%}
-              Temperature will not cross below {{ outside_min_temp_lower_threshold }}°C in the next 24h.
+              Temperature will not cross below {{ target_min_temp_threshold }}°C in the next 24h.
             {%- endif -%}
 
             Forecast 24h lowest temperature is {{ min_temperature }}°C at {{ as_datetime(min_temperature_date).strftime('%H:%M') if min_temperature_date else 'N/A' }}.
