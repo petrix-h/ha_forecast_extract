@@ -117,7 +117,7 @@ actions:
       forecast_json: >
         {% set result = [] %}
         {% for item in first24 %}
-          {% set result = result + [{'datetime': item.datetime, 'temperature': item.temperature}] %}
+          {% set _ = result.append({'datetime': item.datetime, 'temperature': item.temperature}) %}
         {% endfor %}
         {{ result | tojson }}
       # debug first item structure
