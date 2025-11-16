@@ -115,11 +115,11 @@ actions:
         }}
       # create JSON structure with datetime and temperature for each forecast entry
       forecast_json: >
-        {% set result = [] %}
+        {% set result = namespace(items=[]) %}
         {% for item in first24 %}
-          {% set _ = result.append({'datetime': item.datetime, 'temperature': item.temperature}) %}
+          {% set result.items = result.items + [{'datetime': item.datetime, 'temperature': item.temperature}] %}
         {% endfor %}
-        {{ result | tojson }}
+        {{ result.items | tojson }}
       # debug first item structure
       first_item_debug: "{{ first24[0] if (first24 | length) > 0 else 'NO_ITEMS' }}"
 
@@ -166,7 +166,6 @@ actions:
       timestamp: "{{ as_datetime(min_temperature_date).timestamp() | int  }}"
   # Save the forecast data as JSON
   - action: input_text.set_value
-    target:
-      entity_id: "{{ target_forecast_data }}"
+    entity_id: "{{ target_forecast_data }}"
     data:
       value: "{{ forecast_json }}"
