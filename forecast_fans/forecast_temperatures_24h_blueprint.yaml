@@ -32,6 +32,13 @@ blueprint:
         entity:
           domain: input_datetime
       default: input_datetime.min_temp_24h_date_time
+    target_forecast_data:
+      name: Target Forecast Data
+      description: The input_text entity where the 24h forecast data will be stored as JSON
+      selector:
+        entity:
+          domain: input_text
+      default: input_text.forecast_24h_data
 
     # The update interval 
     interval_pattern:
@@ -52,6 +59,7 @@ variables:
   weather_eid: !input weather_entity
   target_min_temp: !input target_min_temp
   target_min_temp_date: !input target_min_temp_date
+  target_forecast_data: !input target_forecast_data
 
 triggers:
   - trigger: time_pattern
@@ -107,6 +115,12 @@ actions:
             | list)[0]
           ) if (min_temperature is not none and (first24 | length) > 0) else none
         }}
+      # create JSON structure with datetime and temperature for each forecast entry
+      forecast_json: >
+        {{
+          (first24 | map(attribute='datetime') | zip(first24 | map(attribute='temperature')) 
+          | map('combine') | list) | tojson
+        }}
 
   # Debug logging to show old vs new values
   - action: system_log.write
@@ -131,3 +145,9 @@ actions:
       entity_id: "{{ target_min_temp_date }}"
     data:
       timestamp: "{{ as_datetime(min_temperature_date).timestamp() | int  }}"
+  # Save the forecast data as JSON
+  - action: input_text.set_value
+    target:
+      entity_id: "{{ target_forecast_data }}"
+    data:
+      value: "{{ forecast_json }}"
