@@ -120,6 +120,8 @@ actions:
           {% set result = result + [{'datetime': item.datetime, 'temperature': item.temperature}] %}
         {% endfor %}
         {{ result | tojson }}
+      # debug first item structure
+      first_item_debug: "{{ first24[0] if (first24 | length) > 0 else 'NO_ITEMS' }}"
 
   # Debug logging for forecast processing
   - action: system_log.write
@@ -129,6 +131,10 @@ actions:
   - action: system_log.write
     data:
       message: "First24 count: {{ first24 | length }}"
+      level: info
+  - action: system_log.write
+    data:
+      message: "First item debug: {{ first_item_debug }}"
       level: info
   - action: system_log.write
     data:
