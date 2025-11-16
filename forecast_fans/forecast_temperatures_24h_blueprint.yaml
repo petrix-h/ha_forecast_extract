@@ -87,12 +87,10 @@ actions:
   - variables:
       forecast_data: "{{ weather_response[weather_eid].forecast or [] }}"
       sorted_forecast: "{{ forecast_data | sort(attribute='datetime') }}"
-      # list of first 24 forecast entries that have a temperature
+      # list of first 24 forecast entries
       first24: >
         {{
-          (sorted_forecast
-          | selectattr('temperature', 'ne', none)
-          | list)[:24]
+          (sorted_forecast | list)[:24]
         }}
       # rounded temperatures for those entries
       temps: >
@@ -122,6 +120,20 @@ actions:
           {% set result = result + [{'datetime': item.datetime, 'temperature': item.temperature}] %}
         {% endfor %}
         {{ result | tojson }}
+
+  # Debug logging for forecast processing
+  - action: system_log.write
+    data:
+      message: "Forecast data count: {{ forecast_data | length }}"
+      level: info
+  - action: system_log.write
+    data:
+      message: "First24 count: {{ first24 | length }}"
+      level: info
+  - action: system_log.write
+    data:
+      message: "Forecast JSON: {{ forecast_json }}"
+      level: info
 
   # Debug logging to show old vs new values
   - action: system_log.write
