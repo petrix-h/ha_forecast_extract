@@ -1,0 +1,315 @@
+blueprint:
+  name: Enhanced Auto Fan State Machine with Forecast Analysis
+  description: >
+    Fetches 24h forecast, analyzes threshold crossings, and manages fan state machine.
+    Combines weather data collection and intelligent preheating logic in single automation.
+    Maintains backward compatibility by updating existing helper entities.
+  domain: automation
+  input:
+    # The temperature sensor to trigger or monitor on
+    ext_temp_sensor:
+      name: Ext temperature sensor
+      description: The temperature sensor to trigger or monitor on
+      selector:
+        entity:
+          domain: sensor
+      default: sensor.temperature_humidity_sensor_e303_temperature
+    
+    # The input weather data
+    weather_entity:
+      name: Weather Entity
+      description: Select the weather entity to extract hourly temperature forecasts from. Tested and verified with SMHI and Met.no weather integrations.
+      selector:
+        entity:
+          domain: weather
+      default: weather.forecast_home
+    
+    #The helper entities with 24h forecast data (for backward compatibility)
+    target_min_temp:
+      name: Target Min Temp
+      description: The input_number entity that holds the 24h lowest temperature
+      selector:
+        entity:
+          domain: input_number
+      default: input_number.min_temp_next_24h
+    target_min_temp_date:
+      name: Target Min Temp Date
+      description: The input_datetime entity that holds the timestamp for the lowest temperature in the next 24h 
+      selector:
+        entity:
+          domain: input_datetime
+      default: input_datetime.min_temp_24h_date_time
+
+    #The statemachine
+    auto_fan_state:
+      name: Target input_select for the state machine with IDLE, PREHEAT, HEAT, WAIT, MANUAL options
+      description: The input_select entity that holds the state of the autofan
+      selector:
+        entity:
+          domain: input_select
+      default: input_select.auto_fan_state
+
+    #The forecast threshold/limit helpers
+    target_min_temp_threshold:
+      name: Target Min Temp threshold
+      description: The threshold at which the 24h lowest temperature is considered to be low enough for the automation to start preheating
+      default: "-3"
+    target_min_temp_threshold_time:
+      name: Target Min Temp threshold time
+      description: The amount of hours ahead of the forecasted lowest temperature the script should start preheating
+      default: "4"
+
+    
+    #The outside temperature threshold values
+    outside_min_temp_lower_threshold:
+      name: Outside Min Temp for HEAT
+      description: The temperature at which if the ouside temperature sensor reaches, the fans will be turned on
+      default: "-3"
+    outside_min_temp_lower_threshold_time:
+      name: Ouside Min Temp threshold time
+      description: The amount of time the outside temp sensor should be below min temp in order for the state machine to go to HEAT
+      default: "5"
+    outside_min_temp_upper_threshold:
+      name: Outside Temp for turning off HEAT
+      description: The temperature at which if the ouside temperature sensor reaches, the state will be set to IDLE or PREHEAT (essentially fans off) 
+      default: "-2"
+    outside_min_temp_upper_threshold_time:
+      name: Ouside Min Temp upper threshold time
+      description: The amount of time the outside temp sensor should be above min temp upper threshold in order for the state machine to go to IDLE/PREHEAT
+      default: "10"
+    outside_min_temp_wait_threshold:
+      name: Outside Temp for turning to WAIT
+      description: The temperature at which if the ouside temperature sensor reaches, the state will be set to WAIT (essentially fans off) due to outside being too cold for the heater anyway
+      default: "-18"
+
+    # The update interval 
+    interval_pattern:
+      name: Update Interval Pattern (minutes)
+      description: >
+        Specify a time pattern value for minutes. Examples:
+        "/30" (every 30 minutes), "0,30" (at :00 and :30), "15" (at :15 every hour).
+        More frequent updates ensure fresher data but may increase system load.
+      default: "03"
+      selector:
+        text:
+          multiline: false
+
+    # Notify target
+    notify_target:
+      name: Target notifications
+      description: The entity to send notificaitons to 
+      default: notify.mobile_app_petris_ipad
+    notify_title:
+      name: Title to use for notifications
+      description: The title to use for notifications to differentiate locations
+      default: "- Home -"
+
+mode: single
+max_exceeded: silent
+
+variables:
+  ext_temp_sensor: !input ext_temp_sensor
+  weather_eid: !input weather_entity
+  target_min_temp: !input target_min_temp
+  target_min_temp_date: !input target_min_temp_date
+  target_min_temp_threshold: !input target_min_temp_threshold 
+  target_min_temp_threshold_time: !input target_min_temp_threshold_time
+  outside_min_temp_lower_threshold: !input outside_min_temp_lower_threshold
+  outside_min_temp_lower_threshold_time: !input outside_min_temp_lower_threshold_time
+  outside_min_temp_upper_threshold: !input outside_min_temp_upper_threshold
+  outside_min_temp_upper_threshold_time: !input outside_min_temp_upper_threshold_time
+  outside_min_temp_wait_threshold: !input outside_min_temp_wait_threshold
+  interval_pattern: !input interval_pattern
+  auto_fan_state: !input auto_fan_state
+  notify_target: !input notify_target
+  notify_title: !input notify_title
+  auto_fan_state_before_run_value: "{{ states(auto_fan_state) }}"
+  
+triggers:
+  - trigger: time_pattern
+    minutes: !input interval_pattern
+  - trigger: homeassistant
+    event: start
+  - trigger: event
+    event_type: event_template_reloaded
+  - trigger: numeric_state
+    entity_id:
+      - !input ext_temp_sensor
+    for:
+      hours: 0
+      minutes: !input outside_min_temp_lower_threshold_time
+      seconds: 0
+    below: !input outside_min_temp_lower_threshold
+  - trigger: numeric_state
+    entity_id:
+      - !input ext_temp_sensor
+    for:
+      hours: 0
+      minutes: !input outside_min_temp_upper_threshold_time
+      seconds: 0
+    above: !input outside_min_temp_upper_threshold
+  - trigger: numeric_state
+    entity_id:
+      - !input ext_temp_sensor
+    for:
+      hours: 0
+      minutes: !input outside_min_temp_upper_threshold_time
+      seconds: 0
+    below: !input outside_min_temp_wait_threshold
+  - trigger: numeric_state
+    entity_id:
+      - !input ext_temp_sensor
+    for:
+      hours: 0
+      minutes: !input outside_min_temp_upper_threshold_time
+      seconds: 0
+    above: !input outside_min_temp_wait_threshold
+
+conditions:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: !input auto_fan_state
+        state:
+          - MANUAL
+
+actions:
+  # Step 1: Fetch hourly forecast using weather.get_forecasts
+  - action: weather.get_forecasts
+    data:
+      type: hourly
+    target:
+      entity_id: "{{ weather_eid }}"
+    response_variable: weather_response
+
+  # Step 2: Process forecast data
+  - variables:
+      forecast_data: "{{ weather_response[weather_eid].forecast or [] }}"
+      sorted_forecast: "{{ forecast_data | sort(attribute='datetime') }}"
+      # list of first 24 forecast entries
+      first24: "{{ (sorted_forecast | list)[:24] }}"
+      # rounded temperatures for those entries
+      temps: "{{ (first24 | map(attribute='temperature') | map('round', 1) | list) }}"
+      min_temperature: "{{ (temps | min) if (temps | length) > 0 else none }}"
+      # find the first entry in first24 whose rounded temperature equals min_temperature, then take its datetime
+      min_temperature_date: >
+        {{
+          (
+            (first24
+            | selectattr('temperature', 'defined')
+            | selectattr('temperature', 'ne', none)
+            | selectattr('temperature', 'equalto', min_temperature)
+            | map(attribute='datetime')
+            | list)[0]
+          ) if (min_temperature is not none and (first24 | length) > 0) else none
+        }}
+      
+      # Enhanced analysis: Find when temp crosses below threshold
+      threshold_crossing_entry: >
+        {{
+          (
+            (first24
+            | selectattr('temperature', 'lt', outside_min_temp_lower_threshold | float)
+            | list | first)
+          ) if (first24 | selectattr('temperature', 'lt', outside_min_temp_lower_threshold | float) | list | length > 0) else none
+        }}
+      
+      threshold_crossing_time: "{{ as_datetime(threshold_crossing_entry.datetime) if threshold_crossing_entry else none }}"
+
+  # Step 3: Update legacy helpers for backward compatibility
+  - action: input_number.set_value
+    target:
+      entity_id: "{{ target_min_temp }}"
+    data:
+      value: "{{ min_temperature }}"
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: "{{ target_min_temp_date }}"
+    data:
+      timestamp: "{{ as_datetime(min_temperature_date).timestamp() | int  }}"
+
+  # Step 4: State machine logic
+  - choose:
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input ext_temp_sensor
+            below: !input outside_min_temp_wait_threshold
+        sequence:
+          - action: input_select.select_option
+            metadata: {}
+            data:
+              option: WAIT
+            target:
+              entity_id: !input auto_fan_state
+            alias: Auto Fan State -> WAIT
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input ext_temp_sensor
+            below: !input outside_min_temp_lower_threshold
+        sequence:
+          - action: input_select.select_option
+            metadata: {}
+            data:
+              option: HEAT
+            target:
+              entity_id: !input auto_fan_state
+            alias: Auto Fan State -> HEAT
+      - conditions: []
+        sequence:
+          - if:
+              - condition: template
+                value_template: >-
+                  {% set now = utcnow() %}
+                  {% set preheat_hours = target_min_temp_threshold_time | float %}
+                  
+                  {# Check if we should preheat based on threshold crossing #}
+                  {% set should_preheat = false %}
+                  {% if threshold_crossing_time is not none %}
+                    {% set should_preheat = (as_datetime(threshold_crossing_time) > now) and ((as_datetime(threshold_crossing_time) - now).total_seconds() <= (preheat_hours | float) *3600) %}
+                  {% endif %}
+                  
+                  {{ should_preheat }}
+            then:
+              - action: input_select.select_option
+                metadata: {}
+                data:
+                  option: PREHEAT
+                target:
+                  entity_id: !input auto_fan_state
+                alias: Auto Fan State -> PREHEAT
+            else:
+              - action: input_select.select_option
+                metadata: {}
+                data:
+                  option: IDLE
+                target:
+                  entity_id: !input auto_fan_state
+                alias: Auto Fan State -> IDLE
+                enabled: true
+
+  # Step 5: Send notification if state changed
+  - if:
+      - condition: template
+        value_template: "{{ states(auto_fan_state) != auto_fan_state_before_run_value }}"
+    then:
+      - action: !input notify_target
+        metadata: {}
+        data:
+          title: !input notify_title
+          message: >-
+            {% set now = utcnow() %}
+            {% set preheat_hours = target_min_temp_threshold_time | float %}
+            
+            Set Auto Fan State to {{ states(auto_fan_state) }} was {{auto_fan_state_before_run_value}}.
+
+            {%- if threshold_crossing_time is not none -%}
+              Temperature will cross below {{ outside_min_temp_lower_threshold }}°C at {{ as_datetime(threshold_crossing_time).strftime('%H:%M') }} 
+              {%- if threshold_crossing_entry is not none -%} ({{ threshold_crossing_entry.temperature }}°C){%- endif -%}
+              {%- if (as_datetime(threshold_crossing_time) - now).total_seconds() <= preheat_hours*3600 -%}, which is within {{ preheat_hours }} hours, so preheating started{%- else -%}, which is more than {{ preheat_hours }} hours away{%- endif -%}.
+            {%- else -%}
+              Temperature will not cross below {{ outside_min_temp_lower_threshold }}°C in the next 24h.
+            {%- endif -%}
+
+            Forecast 24h lowest temperature is {{ min_temperature }}°C at {{ as_datetime(min_temperature_date).strftime('%H:%M') if min_temperature_date else 'N/A' }}.
+
+            The outside temperature is {{ states(ext_temp_sensor, rounded=false, with_unit=true)}}.
