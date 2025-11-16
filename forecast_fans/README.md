@@ -1,16 +1,25 @@
 
-# AI Generated readme based on code 
+# AI Generated README - Enhanced Auto Fan System
 
-## 24h Forecast Parser
-Create: 
-- input_number.min_temp_next_24h - to hold the lowest temp value
-- input_datetime.min_temp_24h_date_time - the datetime of the lowest value
-- input_text.forecast_24h_data - stores complete 24h forecast as JSON
-
-## Auto Fan State Machine
+## Unified Blueprint (Recommended)
+**File: `enhanced_auto_fans_with_forecast.yaml`**
 
 Create: 
 - input_select.auto_fan_state with options: IDLE, PREHEAT, HEAT, WAIT, MANUAL
+- input_number.min_temp_next_24h - to hold lowest temp value (updated for backward compatibility)
+- input_datetime.min_temp_24h_date_time - datetime of the lowest value (updated for backward compatibility)
+
+### Benefits of Unified Approach
+- **Single automation** - combines forecast fetching and state machine logic
+- **No storage limitations** - uses variables instead of input_text helpers
+- **Enhanced preheating** - threshold crossing detection for more precise control
+- **Backward compatibility** - still updates existing helper entities
+- **Simplified debugging** - single trace for all operations
+
+## Legacy Blueprints (Deprecated)
+The following blueprints are still available but deprecated in favor of the unified approach:
+- `forecast_temperatures_24h_blueprint.yaml` - Data collection only
+- `auto_fans_automation_blueprint.yaml` - Decision logic only
 
 
 ## State Machine Logic
@@ -66,23 +75,24 @@ stateDiagram-v2
     MANUAL --> WAIT : External control
 ```
 
-## Blueprint Architecture
+## Unified Blueprint Architecture
 
 ```mermaid
 graph TB
-    subgraph "Data Collection Layer"
-        ForecastParser[forecast_temperatures_24h_blueprint.yaml]
+    subgraph "Enhanced Auto Fan Blueprint"
+        UnifiedBlueprint[enhanced_auto_fans_with_forecast.yaml]
     end
     
-    subgraph "Shared Data Layer"
-        MinTempHelper[input_number.min_temp_next_24h]
-        MinTempDateHelper[input_datetime.min_temp_24h_date_time]
-        ForecastDataHelper[input_text.forecast_24h_data]
-        StateHelper[input_select.auto_fan_state]
+    subgraph "Data Processing"
+        WeatherFetch[Weather API<br/>weather.get_forecasts]
+        ForecastAnalysis[Threshold Crossing<br/>Analysis]
+        StateMachine[State Machine<br/>Logic]
     end
     
-    subgraph "Decision & Control Layer"
-        AutoFans[auto_fans_automation_blueprint.yaml]
+    subgraph "Helper Entities"
+        MinTempHelper[input_number.min_temp_next_24h<br/>Legacy Support]
+        MinTempDateHelper[input_datetime.min_temp_24h_date_time<br/>Legacy Support]
+        StateHelper[input_select.auto_fan_state<br/>State Management]
     end
     
     subgraph "External Systems"
@@ -91,43 +101,45 @@ graph TB
         Notifications[notify.mobile_app_petris_ipad]
     end
     
-    %% Data Connections
-    Weather --> ForecastParser
-    ForecastParser --> MinTempHelper
-    ForecastParser --> MinTempDateHelper
-    ForecastParser --> ForecastDataHelper
-    
-    ForecastDataHelper --> AutoFans
-    TempSensor --> AutoFans
-    StateHelper --> AutoFans
-    AutoFans --> StateHelper
-    AutoFans --> Notifications
+    %% Data Flow
+    Weather --> UnifiedBlueprint
+    TempSensor --> UnifiedBlueprint
+    UnifiedBlueprint --> WeatherFetch
+    WeatherFetch --> ForecastAnalysis
+    ForecastAnalysis --> StateMachine
+    StateMachine --> StateHelper
+    UnifiedBlueprint --> MinTempHelper
+    UnifiedBlueprint --> MinTempDateHelper
+    StateMachine --> Notifications
     
     %% Styling
-    classDef dataLayer fill:#e3f2fd,stroke:#1976d2
-    classDef sharedLayer fill:#f3e5f5,stroke:#7b1fa2
-    classDef controlLayer fill:#e8f5e8,stroke:#388e3c
-    classDef externalLayer fill:#fff3e0,stroke:#f57c00
+    classDef blueprint fill:#e3f2fd,stroke:#1976d2
+    classDef processing fill:#f3e5f5,stroke:#7b1fa2
+    classDef helper fill:#e8f5e8,stroke:#388e3c
+    classDef external fill:#fff3e0,stroke:#f57c00
     
-    class ForecastParser dataLayer
-    class MinTempHelper,MinTempDateHelper,ForecastDataHelper,StateHelper sharedLayer
-    class AutoFans controlLayer
-    class Weather,TempSensor,Notifications externalLayer
+    class UnifiedBlueprint blueprint
+    class WeatherFetch,ForecastAnalysis,StateMachine processing
+    class MinTempHelper,MinTempDateHelper,StateHelper helper
+    class Weather,TempSensor,Notifications external
 ```
 
-### Architecture Layers
+### Architecture Benefits
 
-| Layer | Responsibility | Components |
-|-------|----------------|------------|
-| **Data Collection** | Fetches and processes forecast data | `forecast_temperatures_24h_blueprint.yaml` |
-| **Shared Data** | Stores state and forecast information | Input helpers (JSON, numbers, datetime, select) |
-| **Decision & Control** | Analyzes data and controls fan state | `auto_fans_automation_blueprint.yaml` |
-| **External Systems** | Provides weather data and receives notifications | Weather entity, temperature sensor, notification service |
+| Aspect | Legacy (Split) | Unified |
+|--------|----------------|---------|
+| **Complexity** | High (2 blueprints) | Low (1 blueprint) |
+| **Data Storage** | Limited by input_text | Unlimited (variables) |
+| **Debugging** | Hard (trace across 2) | Easy (single trace) |
+| **Performance** | Multiple helper ops | Single execution |
+| **Maintenance** | Sync issues | Single codebase |
+| **Preheating** | Basic min temp logic | Enhanced threshold crossing |
 
 ### Key Design Principles
 
-1. **Separation of Concerns** - Data collection separated from decision logic
-2. **Loose Coupling** - Blueprints communicate only through shared helpers
-3. **Single Source of Truth** - JSON forecast data eliminates synchronization issues
-4. **Layered Architecture** - Clear data flow from external systems through processing to control
+1. **Unified Processing** - All logic in single automation
+2. **Variable Storage** - No helper storage limitations
+3. **Backward Compatibility** - Maintains existing helper updates
+4. **Enhanced Logic** - Threshold crossing for precise preheating
+5. **Simplified Architecture** - Clear single responsibility
 
