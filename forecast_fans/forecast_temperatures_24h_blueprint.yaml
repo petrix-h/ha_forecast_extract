@@ -117,10 +117,11 @@ actions:
         }}
       # create JSON structure with datetime and temperature for each forecast entry
       forecast_json: >
-        {{
-          (first24 | map(attribute='datetime') | zip(first24 | map(attribute='temperature')) 
-          | map('combine') | list) | tojson
-        }}
+        {% set result = [] %}
+        {% for item in first24 %}
+          {% set result = result + [{'datetime': item.datetime, 'temperature': item.temperature}] %}
+        {% endfor %}
+        {{ result | tojson }}
 
   # Debug logging to show old vs new values
   - action: system_log.write
